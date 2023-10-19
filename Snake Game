@@ -1,0 +1,130 @@
+"""
+Snake
+- OK desenhar uma cobrinha
+- OK andar: WASD
+- pegar maças
+- crescer a cobrinha quando come
+- OK bater em "não comida", morre
+"""
+import time
+import random
+import io_custom
+ESC = '\x1b'  # => chr(27) => unicode for ESC key
+
+
+def gera_tela(tela: list[list[str]]) -> str:
+    """Gera uma representação bonitinha da tela de jogo"""
+    def gera_texto_de_matriz(matriz): return \
+        ''.join([''.join(linha)+'\n' for linha in matriz])
+
+    return gera_texto_de_matriz([list('█'+LARGURA*'█'+'█')] +
+                                [['█'] + linha + ['█'] for linha in tela] +
+                                [list('█'+LARGURA*'█'+'█')])
+
+
+def valida_coord(tela: list[list[str]], coord: tuple[int, int]) -> bool:
+    """Valida se a posição na tela é válida"""
+    x, y = coord
+    altura = len(tela)  # número de linhas
+    if not (0 <= y < altura):
+        return False
+
+    linha = tela[y]
+    if not (0 <= x < len(linha)):
+        return False
+    return True
+
+
+def valida_movimento(tela: list[list[str]], coord: tuple[int, int]) -> bool:
+    """Valida se o movimento é válido"""
+    if not valida_coord(tela, coord):
+        return False
+    x, y = coord
+    posicao = tela[y][x]
+    if posicao != ' ':
+        return False
+
+    return True
+
+
+def avanca_cobra(tela: list[list[str]],
+                 cobra: list[tuple[int, int]],
+                 vetor: tuple[int, int]):
+    cabeca_x, cabeca_y = cobra[0]
+    dx, dy = vetor
+    nova_cabeca = (cabeca_x+dx, cabeca_y+dy)
+    if not valida_movimento(tela, nova_cabeca):
+        return False
+    tela[nova_cabeca[1]][nova_cabeca[0]] = 'o'
+    cobra.insert(0, nova_cabeca)  # cria nova "cabeça"
+    cauda = cobra.pop()  # remove a cauda
+    tela[cauda[1]][cauda[0]] = ' '
+    return True
+
+
+def comer_maca(tela: list[list[str]],
+               cobra: list[tuple[int, int]],
+               vetor: tuple[int, int]):
+    cabeca_x, cabeca_y = cobra[0]
+    dx, dy = vetor
+    nova_cabeca = (cabeca_x+dx, cabeca_y+dy)
+    if not valida_coord(tela, nova_cabeca):
+        return False
+    if tela[nova_cabeca[1]][nova_cabeca[0]] != 'X':
+        return False
+    cobra.insert(0, nova_cabeca)
+    return True
+
+
+def gera_comida(tela: list[list[str]]):
+    """Cria comida no espaço vazio da tela
+        ALERTA: tem o risco de gerar loop infinito
+        caso não haja nenhum espaço vazio
+    """
+    lista = []
+    while not lista:
+        y, linha = random.choice(list(enumerate(tela)))
+        lista = [(x, y) for x, celula in
+                 enumerate(linha) if celula == ' ']
+    x, y = random.choice(lista)
+    tela[y][x] = 'X'
+
+
+ALTURA = LARGURA = 30
+tela = [list(LARGURA*' ') for _ in range(ALTURA)]
+cobra = [(LARGURA//2, ALTURA//2),
+         (LARGURA//2-1, ALTURA//2),
+         (LARGURA//2-2, ALTURA//2)]
+vetor = (1, 0)
+for x, y in cobra:
+    tela[y][x] = 'o'
+gera_comida(tela)
+
+input('Aperte Enter')
+
+io_custom.clear()
+print(f'\n{gera_tela(tela)}')
+while True:
+    if io_custom.kbhit():
+        letra = io_custom.getch()
+        if letra not in 'wasd':
+            if letra == ESC:
+                break
+            continue
+        if letra == 'w':
+            vetor = (0, -1)
+        if letra == 's':
+            vetor = (0, 1)
+        if letra == 'd':
+            vetor = (1, 0)
+        if letra == 'a':
+            vetor = (-1, 0)
+    time.sleep(0.06)
+    if not avanca_cobra(tela, cobra, vetor):
+        if not comer_maca(tela, cobra, vetor):
+            break
+        else:
+            gera_comida(tela)
+    io_custom.clear()
+    print(f'\n{gera_tela(tela)}')
+print('ciao')
